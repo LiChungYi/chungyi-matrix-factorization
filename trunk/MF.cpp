@@ -104,6 +104,7 @@ class MatrixFactorizationData{
 	const char* trainingName, *validationName, *testingName;
 	double (*userFeature)[nFEATURE], (*itemFeature)[nFEATURE], (*userFeatureStep)[nFEATURE], (*itemFeatureStep)[nFEATURE];
 	double (*userFeaturePast)[nFEATURE], (*itemFeaturePast)[nFEATURE];
+	double (*userBestFeature)[nFEATURE], (*itemBestFeature)[nFEATURE];
 
 	inline void allocateMemory(int maxUidP1, int maxIidP1){
 		userFeature = new double[maxUidP1][nFEATURE];
@@ -112,6 +113,8 @@ class MatrixFactorizationData{
 		itemFeature = new double[maxIidP1][nFEATURE];
 		itemFeatureStep = new double[maxIidP1][nFEATURE];
 		itemFeaturePast = new double[maxIidP1][nFEATURE];
+		userBestFeature = new double[maxUidP1][nFEATURE];
+		itemBestFeature = new double[maxIidP1][nFEATURE];
 	}
 	
 
@@ -335,10 +338,6 @@ class MatrixFactorization{
 	static int startOptimizating(MatrixFactorizationData& mfData, int fixedIter){	
 		double trainingRMSE, validationRMSE, testingRMSE, trainingMAE, validationMAE, testingMAE, preValidationRMSE = DBL_MAX, bestValidationRMSE = DBL_MAX;
 		int iter = 1, bestIter = -1;
-		
-		double (*userBestFeature)[nFEATURE], (*itemBestFeature)[nFEATURE];
-		userBestFeature = new double[mfData.training.maxUidP1][nFEATURE];
-		itemBestFeature = new double[mfData.training.maxIidP1][nFEATURE];
 
 		while(1){
 			//calculate all 
@@ -354,11 +353,11 @@ class MatrixFactorization{
 				bestIter = iter;
 				for(int i = 0; i < mfData.training.maxUidP1; ++i){
 					for(int j = 0; j < nFEATURE; ++j)
-						userBestFeature[i][j] = mfData.userFeature[i][j];
+						mfData.userBestFeature[i][j] = mfData.userFeature[i][j];
 				}
 				for(int i = 0; i < mfData.training.maxIidP1; ++i){
 					for(int j = 0; j < nFEATURE; ++j)
-						itemBestFeature[i][j] = mfData.itemFeature[i][j];
+						mfData.itemBestFeature[i][j] = mfData.itemFeature[i][j];
 				}
 			}
 
@@ -391,11 +390,11 @@ class MatrixFactorization{
 			//copy the best mode back
 			for(int i = 0; i < mfData.training.maxUidP1; ++i){
 				for(int j = 0; j < nFEATURE; ++j)
-					mfData.userFeature[i][j] = userBestFeature[i][j];
+					mfData.userFeature[i][j] = mfData.userBestFeature[i][j];
 			}
 			for(int i = 0; i < mfData.training.maxIidP1; ++i){
 				for(int j = 0; j < nFEATURE; ++j)
-					mfData.itemFeature[i][j] = itemBestFeature[i][j];
+					mfData.itemFeature[i][j] = mfData.itemBestFeature[i][j];
 			}
 		
 
