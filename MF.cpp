@@ -16,6 +16,9 @@ class Parameter{
 	static const double learningRate = 0.004;//0.0025;//0.0000003;
 	static double featureReg;
 	static const int MONITER_ITERATION_NUM = 20;
+
+
+	static const int ID_START_IS_ONE = 1;
 	/***********************************************************************************/
 
 	static void dumpParameter(){
@@ -23,8 +26,23 @@ class Parameter{
 		fprintf(stderr, "nFEATURE = %d\n", nFEATURE);
 		fprintf(stderr, "learningRate = %lf\n", learningRate);
 		fprintf(stderr, "featureReg = %lf\n", featureReg);
+		fprintf(stderr, "MONITER_ITERATION_NUM = %d\n", MONITER_ITERATION_NUM);
 	}
 };
+
+
+void dealWithID(int& anID){
+	if(Parameter::ID_START_IS_ONE){
+		assert(anID >= 1);
+		--anID;
+		return;
+	}
+	assert(0);
+}
+
+inline double pow2(double x){
+	return x*x;
+}
 
 class RatingList{
     public:
@@ -40,20 +58,18 @@ class RatingList{
 	int maxUidP1, maxIidP1;
 	double maxValue, minValue;
 	
-	RatingList(){ //dummay RatingList
-		maxUidP1 = 0;
-		maxIidP1 = 0;
-		maxValue = 0;
-		minValue = 0;
-	}
 
-	RatingList(const char* fileName){
-		if(fileName[0] == '\0'){
-			RatingList();
+	RatingList(const char* fileName = ""){
+		if(fileName[0] == '\0'){//dummy RatingList
+			maxUidP1 = 0;
+			maxIidP1 = 0;
+			maxValue = 0;
+			minValue = 0;
 			return;
 		}
-		maxUidP1= 1, maxIidP1 = 1;
+		maxUidP1= 0, maxIidP1 = 0;
 		FILE* fp = fopen(fileName, "r");
+		assert(NULL != fp);
 		int u, i;
 		double r;
 		assert(NULL != fp);
@@ -61,8 +77,8 @@ class RatingList{
 		minValue =  1000000;    //just a large value
 		while(fscanf(fp, "%d %d %lf", &u,&i,&r) == 3){
 			//start from 1, shift to 0
-			assert(u >= 1 && i >= 1);
-			u -= 1; i -= 1;
+			dealWithID(u);
+			dealWithID(i);
 
 			RatingTuple x(u,i,r,r);
 			ratingList.push_back(x);
@@ -162,6 +178,9 @@ class MatrixFactorizationData{
 		if(training.maxIidP1 < testing.maxIidP1)
 			training.maxIidP1 = testing.maxIidP1;
 	
+		fprintf(stderr, "train: maxUidP1 %d maxIidP1 %d\n", training.maxUidP1, training.maxIidP1);
+		fprintf(stderr, "valid: maxUidP1 %d maxIidP1 %d\n", validation.maxUidP1, validation.maxIidP1);
+		fprintf(stderr, "test: maxUidP1 %d maxIidP1 %d\n", testing.maxUidP1, testing.maxIidP1);
 		fprintf(stderr, "train: max%lf min%lf\n", training.maxValue, training.minValue);
 		fprintf(stderr, "valid: max%lf min%lf\n", validation.maxValue, validation.minValue);
 		fprintf(stderr, "test: max%lf min%lf\n", testing.maxValue, testing.minValue);
@@ -206,8 +225,17 @@ class MatrixFactorizationData{
 		theMAE /= (double)inList.ratingList.size();
 	}
 
-	void calculateTrainingError(double& theRMSE, double& theMAE){
+	void calculateTrainingError(double& theRMSE, double& theMAE, double& objectiveValue){
+		objectiveValue = 0;
+		for(int userID = 0; userID < training.maxUidP1; ++userID)
+			for(int k = 0; k < nFEATURE; ++k)
+				objectiveValue += pow2(userFeature[userID][k]);
+		for(int itemID = 0; itemID < training.maxIidP1; ++itemID)
+			for(int k = 0; k < nFEATURE; ++k)
+				objectiveValue += pow2(itemFeature[itemID][k]);
+		objectiveValue *= Parameter::featureReg;
 		calculateGeneralError(training, theRMSE, theMAE, 0, 1);
+		objectiveValue += theRMSE * theRMSE * (double)training.ratingList.size();
 		theRMSE *= globalVariance;
 		theMAE *= globalVariance;
 	}
@@ -295,8 +323,8 @@ class MatrixFactorization{
 			}
 		}
 
-		double preRMSE, preMAE;
-		mfData.calculateTrainingError(preRMSE, preMAE);
+		double preRMSE, preMAE, preObjectiveValue;
+		mfData.calculateTrainingError(preRMSE, preMAE, preObjectiveValue);
 		double learningRateNow = learningRate;
 
 		for(int userID = 0; userID < training.maxUidP1; ++userID){
@@ -322,12 +350,12 @@ class MatrixFactorization{
 					mfData.itemFeature[itemID][k] = mfData.itemFeaturePast[itemID][k] + learningRateNow * mfData.itemFeatureStep[itemID][k];
 				}
 
-			double nowRMSE, nowMAE;
-			mfData.calculateTrainingError(nowRMSE, nowMAE);
-			if(nowRMSE < preRMSE)
+			double nowRMSE, nowMAE, nowObjectiveValue;
+			mfData.calculateTrainingError(nowRMSE, nowMAE, nowObjectiveValue);
+			if(nowObjectiveValue < preObjectiveValue)
 				break;
 			learningRateNow /= 2;
-			printf("preRMSE %lf nowRMSE %lf, learningRateNow = %lf\n", preRMSE, nowRMSE, learningRateNow);
+			fprintf(stderr, " preRMSE %lf nowRMSE %lf, preObjectiveValue %lf, nowObjectiveValue %lf, learningRateNow = %lf\n", preRMSE, nowRMSE, preObjectiveValue, nowObjectiveValue, learningRateNow);
 		}
 
 	}
@@ -336,12 +364,12 @@ class MatrixFactorization{
 */
 
 	static int startOptimizating(MatrixFactorizationData& mfData, int fixedIter){	
-		double trainingRMSE, validationRMSE, testingRMSE, trainingMAE, validationMAE, testingMAE, preValidationRMSE = DBL_MAX, bestValidationRMSE = DBL_MAX;
+		double trainingRMSE, validationRMSE, testingRMSE, trainingMAE, validationMAE, testingMAE, preValidationRMSE = DBL_MAX, bestValidationRMSE = DBL_MAX, objectiveValue;
 		int iter = 1, bestIter = -1;
 
 		while(1){
 			//calculate all 
-			mfData.calculateTrainingError(trainingRMSE, trainingMAE);
+			mfData.calculateTrainingError(trainingRMSE, trainingMAE, objectiveValue);
 			mfData.calculateValidError(validationRMSE, validationMAE);
 			mfData.calculateTestError(testingRMSE, testingMAE);
 			fprintf(stderr, "currentIter = %d, bestIter = %d\n", iter, bestIter);
@@ -380,11 +408,12 @@ class MatrixFactorization{
 	
 		
 		printf("end iter: %d, bestIter: %d\n", iter, bestIter);
-		mfData.calculateTrainingError(trainingRMSE, trainingMAE);
-		mfData.calculateValidError(validationRMSE, validationMAE);
-		mfData.calculateTestError(testingRMSE, testingMAE);
-		if(fixedIter != 0)
+		if(fixedIter != 0){
+			mfData.calculateTrainingError(trainingRMSE, trainingMAE, objectiveValue);
+			mfData.calculateValidError(validationRMSE, validationMAE);
+			mfData.calculateTestError(testingRMSE, testingMAE);
 			printf("end Iter: trainRMSE = %lf(MAE %lf), valRMSE %lf(MAE %lf), testRMSE %lf(MAE %lf)\n", trainingRMSE, trainingMAE, validationRMSE, validationMAE, testingRMSE, testingMAE);
+		}
 	
 		if(fixedIter == 0){//not the retrain, in retrain we can't look at testing RMSE to decide our model
 			//copy the best mode back
@@ -413,7 +442,7 @@ class MatrixFactorization{
 				printf("%lf\n", sqrt(userLen * itemLen));
 			}
 
-			mfData.calculateTrainingError(trainingRMSE, trainingMAE);
+			mfData.calculateTrainingError(trainingRMSE, trainingMAE, objectiveValue);
 			mfData.calculateValidError(validationRMSE, validationMAE);
 			mfData.calculateTestError(testingRMSE, testingMAE);
 			printf("reg = %lf, bestIter: trainRMSE = %lf(MAE %lf), valRMSE %lf(MAE %lf), testRMSE %lf(MAE %lf)\n", Parameter::featureReg, trainingRMSE, trainingMAE, validationRMSE, validationMAE, testingRMSE, testingMAE);
@@ -442,7 +471,7 @@ int main(int argc, char* argv[]){
 
         const char *train = argv[2], *valid = argv[3], *test = argv[4];
 
-	printf("valid To stop\n");
+	fprintf(stderr, "valid To stop\n");
 	MatrixFactorizationData mfData(train, valid, test);
 	MatrixFactorization::startOptimizating(mfData, 0);
 }
