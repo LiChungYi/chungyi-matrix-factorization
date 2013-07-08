@@ -407,12 +407,12 @@ class MatrixFactorization{
 		}
 	
 		
-		printf("end iter: %d, bestIter: %d\n", iter, bestIter);
+		fprintf(stderr, "end iter: %d, bestIter: %d\n", iter, bestIter);
 		if(fixedIter != 0){
 			mfData.calculateTrainingError(trainingRMSE, trainingMAE, objectiveValue);
 			mfData.calculateValidError(validationRMSE, validationMAE);
 			mfData.calculateTestError(testingRMSE, testingMAE);
-			printf("end Iter: trainRMSE = %lf(MAE %lf), valRMSE %lf(MAE %lf), testRMSE %lf(MAE %lf)\n", trainingRMSE, trainingMAE, validationRMSE, validationMAE, testingRMSE, testingMAE);
+			fprintf(stderr, "end Iter: trainRMSE = %lf(MAE %lf), valRMSE %lf(MAE %lf), testRMSE %lf(MAE %lf)\n", trainingRMSE, trainingMAE, validationRMSE, validationMAE, testingRMSE, testingMAE);
 		}
 	
 		if(fixedIter == 0){//not the retrain, in retrain we can't look at testing RMSE to decide our model
@@ -439,13 +439,13 @@ class MatrixFactorization{
 					userLen += mfData.userFeature[userID][k] * mfData.userFeature[userID][k];
 				for(int itemID = 0; itemID < mfData.training.maxIidP1; ++itemID)
 					itemLen += mfData.itemFeature[itemID][k] * mfData.itemFeature[itemID][k];
-				printf("%lf\n", sqrt(userLen * itemLen));
+				fprintf(stderr, "%lf\n", sqrt(userLen * itemLen));
 			}
 
 			mfData.calculateTrainingError(trainingRMSE, trainingMAE, objectiveValue);
 			mfData.calculateValidError(validationRMSE, validationMAE);
 			mfData.calculateTestError(testingRMSE, testingMAE);
-			printf("reg = %lf, bestIter: trainRMSE = %lf(MAE %lf), valRMSE %lf(MAE %lf), testRMSE %lf(MAE %lf)\n", Parameter::featureReg, trainingRMSE, trainingMAE, validationRMSE, validationMAE, testingRMSE, testingMAE);
+			fprintf(stderr, "reg = %lf, bestIter: trainRMSE = %lf(MAE %lf), valRMSE %lf(MAE %lf), testRMSE %lf(MAE %lf)\n", Parameter::featureReg, trainingRMSE, trainingMAE, validationRMSE, validationMAE, testingRMSE, testingMAE);
 		}
 
 		char modelName[1000];
