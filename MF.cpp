@@ -352,7 +352,7 @@ class MatrixFactorization{
 
 			double nowRMSE, nowMAE, nowObjectiveValue;
 			mfData.calculateTrainingError(nowRMSE, nowMAE, nowObjectiveValue);
-			if(nowObjectiveValue < preObjectiveValue)
+			if(nowObjectiveValue <= preObjectiveValue)
 				break;
 			learningRateNow /= 2;
 			fprintf(stderr, " preRMSE %lf nowRMSE %lf, preObjectiveValue %lf, nowObjectiveValue %lf, learningRateNow = %lf\n", preRMSE, nowRMSE, preObjectiveValue, nowObjectiveValue, learningRateNow);
@@ -391,7 +391,7 @@ class MatrixFactorization{
 
 			//stop criterion
 			if(fixedIter == 0){	//look at validation to stop
-				if(preValidationRMSE < validationRMSE  && iter > (bestIter+MONITER_ITERATION_NUM))
+				if(preValidationRMSE - 1e-7 <= validationRMSE && iter > (bestIter+MONITER_ITERATION_NUM))
 					break;
 			}
 			else{
